@@ -2,7 +2,11 @@
 title: "Introduction to Robust Spatial Extent Inference using the pbj Package"
 author: "Simon N. Vandekar"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::pdf_document:
+      keep_tex: true
+      includes:
+          in_header: header.tex
 bibliography: bib.bib
 vignette: >
     %\VignetteIndexEntry{Introduction to Robust Spatial Extent Inference Using the pbj Package}
@@ -44,6 +48,8 @@ This vignette will take you through the process of computing a robust statistica
 Note, the `pbj` analysis package was designed for group level models where the input data can be subject or study level data.
 The tools in this package assume you have fully processed study (or subject) level imaging data.
 Preprocessing can be done using other tools in `R` [@muschelli_neuroconductor:_2018].
+
+![Schematic of pbj analysis functions.](pbj_schematic.jpg)
 
 ## Computing statMaps
 
