@@ -45,11 +45,6 @@ Note, the `pbj` analysis package was designed for group level models where the i
 The tools in this package assume you have fully processed study (or subject) level imaging data.
 Preprocessing can be done using other tools in `R` [@muschelli_neuroconductor:_2018].
 
-### Functions and objects overview
-
-
-![Schematic of pbj analysis functions.](pbj_schematic.jpg)
-
 ## Computing statMaps
 
 ### loading in the data
@@ -291,7 +286,7 @@ This object is a list containing the following things:
 
 If multiple CFTs were used it produces the images for each of those thresholds.
 
-```{r}
+```{r, eval=FALSE}
 image(sPBJn, alpha = 0.2)
 ```
 
