@@ -55,7 +55,7 @@ Preprocessing can be done using other tools in `R` [@muschelli_neuroconductor:_2
 
 ### loading in the data
 The first step is to gather the files we need to perform the analysis.
-This is the hardest part; passing the necessary files to the `computeStats` function produces a `statMap` object which retains all of the objects we need to perform SEI and visualization.
+This is the hardest part; passing the necessary files to the `lmPBJ` function produces a `statMap` object which retains all of the objects we need to perform SEI and visualization.
 First, we install the packages we need.
 The pain21 package includes curated data from the "21 Pain Studies" [Neurovault repository](https://neurovault.org/collections/1425/) [@maumet_sharing_2016].
 
@@ -89,16 +89,16 @@ basename(pain$template)
 ```
 
 ### Computing the statistical map using voxel-wise weights
-These data can be passed as arguments to the `computeStats` function.
+These data can be passed as arguments to the `lmPBJ` function.
 Since this is a meta-analysis we are performing a one sample t-test, so the full model includes only the intercept and the reduced model is `NULL`.
 There are many options with how we pass arguments and analyze the data.
 As a first pass, we'll use the inverse of the variance images as weights in the regression.
 Here, we will specify the outdir argument, which will save the output as nifti images so that the large objects stored in the statMap object are not retained in memory.
 Using voxel level weights can take a little while because the computation must be performed separately at each voxel.
-`computeStats` defaults to using a robust "sandwich" covariance estimate (utilized by the sPBJ procedure);
+`lmPBJ` defaults to using a robust "sandwich" covariance estimate (utilized by the sPBJ procedure);
 this can be changed by setting `robust=FALSE`.
 Because we specified the output directory, nifti images of the results are stored in `outdir` and `statmap` includes only character vectors and formulas that point to the files in `outdir`.
-The output directory and all parent directories are created automatically by `computeStats`.
+The output directory and all parent directories are created automatically by `lmPBJ`.
 
 ```{r, cache=TRUE}
 library(pbj)
@@ -111,7 +111,7 @@ dir.create(outdir)
 
 ```{r, eval=TRUE}
 comptime = system.time(
-  statmap <- computeStats(pain$data$images, form = form, 
+  statmap <- lmPBJ(pain$data$images, form = form, 
                           formred, pain$mask,
                           data = pain$data, 
                           Winv = pain$data$varimages, outdir=outdir)
@@ -120,7 +120,7 @@ comptime = system.time(
 statmap
 ```
 
-The summary output gives us an idea of the data we are working with. The `computeStats` function returns a `statMap` object, which contains the following fields:
+The summary output gives us an idea of the data we are working with. The `lmPBJ` function returns a `statMap` object, which contains the following fields:
 
   * The `stat` object is a character pointing to the statistical nifti image
   * The `coef` object is a character pointing to the 4d coefficient image
@@ -137,7 +137,7 @@ The details are not critical to understanding how to use the package, but feel f
 
 Let's run this analysis again, instead on scaled versions of the statistical maps.
 Instead of voxel-wise weights we'll use weights are that proportional to the sample size for each study.
-Because we are now going to pass statistical maps to `computeStats`, we will compute these maps in `R` and pass `niftiImage` objects as arguments to `computeStats`, instead of character vectors.
+Because we are now going to pass statistical maps to `lmPBJ`, we will compute these maps in `R` and pass `niftiImage` objects as arguments to `lmPBJ`, instead of character vectors.
 Note that we are passing the weights using the `W=` argument this time because the weights are assumed to be approximately inversely proportional to the variance.
 We include the `template` argument here for downstream aesthetics.
 
@@ -169,7 +169,7 @@ rm(varimages)
 images = updateNifti(do.call(abind, c(images, along=4)), readNifti(pain$template))
 
 # third level analysis of statistical maps
-comptimen = system.time(statmapn <- computeStats(images, form, formred, pain$mask,
+comptimen = system.time(statmapn <- lmPBJ(images, form, formred, pain$mask,
                                                  template=pain$template, data = pain$data, W = pain$data$n))
 
 statmapn
@@ -187,7 +187,7 @@ The `statMap` object has a slightly different output here because we did not spe
   * The `mask` is a niftiImage object of the mask file
   * The `template` object is a character of the template file
 
-`statMap` includes other things that are important to keep track of, such as the formulas used in the call to `computeStats`, whether the robust covariance was used, the degrees of freedom, and residual degrees of freedom.
+`statMap` includes other things that are important to keep track of, such as the formulas used in the call to `lmPBJ`, whether the robust covariance was used, the degrees of freedom, and residual degrees of freedom.
 By default, for 1-dimensional parameter images (i.e. t-tests) a Z-statistic image is return for the `stat` object.
 This is encoded within the  `pbj` package by setting `statmap$df=0`.
 
@@ -212,7 +212,7 @@ image(statmapn)
 
 We can see from the maps that using voxel-level weights appears to be more powerful: there are more extreme values.
 Because we did not specify a template image for the first analysis, image defaults to plotting on the mask image.
-If no mask image is passed then `pbjClust` will error.
+If no mask image is passed then `pbjSEI` will error.
 
 It is also possible to display the lightbox for other orientations:
 ```{r, eval=FALSE}
@@ -239,7 +239,7 @@ write.statMap(statmapn, outdir=resdir)
 The next step is to perform spatial extent inference to see how likely our results are to have occurred under the global null hypothesis that the image is not associated with the covariate.
 In this case, the global null corresponds to the hypothesis that the mean of the study-level images is equal to zero.
 
-### Performing SEI using `pbjClust`
+### Performing SEI using `pbjSEI`
 The `statMap` object includes the statistical map (`statmap$stat`) and a matrix that is proportional to an estimate of a square root of the covariance matrix of the statistical map (`statmap$sqrtSigma`). 
 The `sqrtSigma` object can be use to estimate the distribution of the largest cluster size under the null using a parametric bootstrap procedure [@vandekar_robust_2018].
 This distribution is then used to compute p-values for each cluster.
@@ -259,13 +259,13 @@ We do this by multiplying the CFT by 2 in the case that a t-test was performed, 
 
 Because the PBJ and sPBJ procedures use a bootstrap, the `nboot` argument can be used to control the number of bootstrap samples used.
 For this example we use 200 samples, but for a publication a few thousand is more appropriate to reduce the error in the computational approximation.
-`pbjClust` keeps track of progress while it's running (not shown here).
+`pbjSEI` keeps track of progress while it's running (not shown here).
 We again use `system.time` here to track computing times.
 
 
 ```{r, results=FALSE}
-pbjcomptime  = system.time(sPBJ  <- pbjClust(statmap,  nboot=200))
-pbjcomptimen = system.time(sPBJn <- pbjClust(statmapn, nboot=200))
+pbjcomptime  = system.time(sPBJ  <- pbjSEI(statmap,  nboot=200))
+pbjcomptimen = system.time(sPBJn <- pbjSEI(statmapn, nboot=200))
 ```
 
 The bootstrap time doesn't differ between voxel-wise or study/subject level weights.
@@ -274,7 +274,7 @@ The bootstrap time doesn't differ between voxel-wise or study/subject level weig
 print(c('voxel weights'=pbjcomptime[3], 'study weights'=pbjcomptimen[3]))
 ```
 
-The `pbjClust` function returns a `pbj` object which contains information about which clusters are large enough to be unlikely to have occurred by chance under the global null.
+The `pbjSEI` function returns a `pbj` object which contains information about which clusters are large enough to be unlikely to have occurred by chance under the global null.
 This object is a list containing the following things:
 
 * `stat` This is the statistical map from the `statMap` object without changes
